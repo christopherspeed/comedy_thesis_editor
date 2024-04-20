@@ -1,0 +1,16 @@
+# Ignore compiled Python bytecode files
+*.pyc
+
+# Ignore cache directories
+__pycache__/
+
+# Ignore bulky audio / video files
+*.mov 
+*.mp4
+*.mp3
+*.wav
+
+# Ignore saved face or edit data
+*.json
+*.npy
+*.npz
