@@ -61,9 +61,11 @@ def detect_faces_cascade(clip_path: str, should_annotate:bool = False, output_di
     return frames
 
 def detect_faces(clips: "list[str]", method: Literal["haar", "facenet"]):
+    faces = []
     if method == 'haar':
         faces = [{"filename":clip, "detections": detect_faces_cascade(clip)} for clip in clips]
     elif method == "facenet":
         print("Not implemented yet.")
-        faces = []
+    else:
+        raise ValueError("Invalid method type specified. Supported methods are 'haar' and 'facenet'.")
     return faces
