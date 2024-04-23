@@ -1,27 +1,32 @@
-import numpy 
+import numpy as np
 import os
+from editor.core import Edit, VideoSegment, MetaClipData
 
-from dataclasses import dataclass
+from processing.features import get_best_new_clip, is_face_visible
 
-class Edit:
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self.edit_list: "list[VideoSegment]" = []
-        self.duration = -1 # needs to be updated in the process of getting the clips
-
-@dataclass
-class VideoSegment:
-    filename: str
-    start: int
-    end: int
     
 def edit_random(edit_start_time: int=0, num_cuts=0):
     pass
 
-def edit_simple(edit_start_time: int=0):
-    pass
+def edit_simple(current_edit:Edit, clips_and_annotations: "list[MetaClipData]", starting_clip:str, threshold_frames:int = 5, edit_start_time: int=0, should_save=True):
+    new_edit = []
+    # main edit loop
+    frames_remaining = threshold_frames
+    current_clip = starting_clip
+    clip_start = edit_start_time
+    for t in range(edit_start_time, current_edit.duration):
+        # swap if performer's face isn't visible for threshold # of frames
+        if not is_face_visible(t, current_clip): frames_remaining -= 1
+        else: frames_remaining = threshold_frames # reset if face returns
+        
+        if frames_remaining == 0:
+            frames_remaining = threshold_frames
+            new_edit.append(VideoSegment(current_clip, start=clip_start, end=t))
+            clip_start = t # may have off-by-one error
+    
+        
 
-def edit_complex(edit_start_time: int=0):
+def edit_complex(edit_start_time: int=0, should_save=True):
     pass    
     
 def overwrite(current_edit: Edit, clip: str, start, end) -> "list[dict]":

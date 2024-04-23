@@ -2,6 +2,7 @@ import numpy as np
 import cv2 
 from tqdm import tqdm
 from typing import Literal
+from editor.core import MetaClipData
 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
@@ -58,14 +59,30 @@ def detect_faces_cascade(clip_path: str, should_annotate:bool = False, output_di
 
     # subprocess.run(ffmpeg_command)
     
-    return frames
+    return frames, frame_width, frame_height
 
 def detect_faces(clips: "list[str]", method: Literal["haar", "facenet"]):
+    print("Clips to process: ", clips)
     faces = []
     if method == 'haar':
-        faces = [{"filename":clip, "detections": detect_faces_cascade(clip)} for clip in clips]
+        for clip in clips:
+            detections, width, height = detect_faces_cascade(clip)
+            faces.append({
+                "filename": clip,
+                "detections": detections,
+                "height": height,
+                "width": width
+            })
     elif method == "facenet":
         print("Not implemented yet.")
     else:
         raise ValueError("Invalid method type specified. Supported methods are 'haar' and 'facenet'.")
     return faces
+
+############## Face Detection Comparison Utilities ############################
+
+def get_best_new_clip(start_frame: int, threshold: int, detections: "list[MetaClipData]") -> str:
+    pass
+
+def is_face_visible(frame: int, clip: MetaClipData) -> bool:
+    return clip.detections[frame] != np.array([])
