@@ -6,6 +6,10 @@ from editor.core import MetaClipData
 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
+def process_clips(clips: "list[str]", method: str='haar') -> "list[MetaClipData]":
+    annotations = detect_faces(clips, method)
+    return annotations
+
 def detect_faces_cascade(clip_path: str, should_annotate:bool = False, output_dir:str = ""):
     frames = []
     cap = cv2.VideoCapture(clip_path)
@@ -67,12 +71,7 @@ def detect_faces(clips: "list[str]", method: Literal["haar", "facenet"]):
     if method == 'haar':
         for clip in clips:
             detections, width, height = detect_faces_cascade(clip)
-            faces.append({
-                "filename": clip,
-                "detections": detections,
-                "height": height,
-                "width": width
-            })
+            faces.append(MetaClipData(clip, detections, height, width))
     elif method == "facenet":
         print("Not implemented yet.")
     else:
@@ -81,7 +80,8 @@ def detect_faces(clips: "list[str]", method: Literal["haar", "facenet"]):
 
 ############## Face Detection Comparison Utilities ############################
 
-def get_best_new_clip(start_frame: int, threshold: int, detections: "list[MetaClipData]") -> str:
+def get_best_new_clip(start_frame: int, threshold: int, detections: "list[MetaClipData]") -> MetaClipData:
+    # sort of naive idea -> if no better is available, return something to signify this and don't append
     pass
 
 def is_face_visible(frame: int, clip: MetaClipData) -> bool:

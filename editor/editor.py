@@ -8,21 +8,26 @@ from processing.features import get_best_new_clip, is_face_visible
 def edit_random(edit_start_time: int=0, num_cuts=0):
     pass
 
-def edit_simple(current_edit:Edit, clips_and_annotations: "list[MetaClipData]", starting_clip:str, threshold_frames:int = 5, edit_start_time: int=0, should_save=True):
+def edit_simple(current_edit:Edit, clips_and_annotations: "list[MetaClipData]", starting_clip:MetaClipData, threshold_frames:int = 5, edit_start_time: int=0, should_save=True):
     new_edit = []
     # main edit loop
     frames_remaining = threshold_frames
     current_clip = starting_clip
     clip_start = edit_start_time
-    for t in range(edit_start_time, current_edit.duration):
+    for t in range(edit_start_time, current_edit.duration): # TODO: ensure duration isn't -1
         # swap if performer's face isn't visible for threshold # of frames
         if not is_face_visible(t, current_clip): frames_remaining -= 1
         else: frames_remaining = threshold_frames # reset if face returns
         
         if frames_remaining == 0:
             frames_remaining = threshold_frames
-            new_edit.append(VideoSegment(current_clip, start=clip_start, end=t))
             clip_start = t # may have off-by-one error
+            new_edit.append(VideoSegment(current_clip, start=clip_start, end=t)) # TODO: maybe adjust in cases where we can't cut
+            current_clip = get_best_new_clip(t, threshold_frames, clips_and_annotations)
+            
+    
+    
+    return new_edit
     
         
 

@@ -1,7 +1,27 @@
 import os
 import json
 import pickle
-from editor.core import Edit
+from editor.core import Edit, MetaClipData, VideoSegment
+from processing.features import process_clips
+
+def setup_editor(new_edit_title: str, new_annotation_title:str, clips_src_dir:str, previous_edit_filename: str="", previous_annotation_filename: str=""):
+    clips = get_input_clips(clips_src_dir)
+   
+    if previous_annotation_filename != "":
+        annotations = process_clips(clips)
+        save_annotations(new_annotation_title, annotations)
+    else:
+        annotations = load_annotations(previous_annotation_filename)
+        
+    if previous_edit_filename != "":
+        edit = Edit(new_edit_title)
+        edit.duration = len(annotations[0].detections) # TODO kind of hacky -> length of frames should be same across all clips
+        # save this edit as state initialization
+        save_edit(edit)
+    else:
+        edit = load_edit(previous_edit_filename) # duration, name, etc. should be properly initialized
+        
+    return edit, annotations
 
 
 def get_input_clips(clip_src_dir: str) -> "list[str]":
@@ -11,6 +31,7 @@ def get_input_clips(clip_src_dir: str) -> "list[str]":
             path = os.path.join(root, file)
             if path.endswith(".MOV") or path.endswith(".mp4"): clips.append(path)
     return clips
+
 
 # def save_current_edit(current_video_edit: "list[dict]", filename_to_save_to: str):
 #     with open(filename_to_save_to, 'w') as f:
@@ -30,10 +51,36 @@ def save_edit(current_video_edit: Edit):
         pickle.dump(current_video_edit, f)
     print("Edit Data Saved")
 
-def load_edit(previous_video_edit_name: str):
+    # Get the file size
+    file_size = os.path.getsize(filename)
+    print(f"File size of {filename}: {file_size} bytes")
+
+
+def load_edit(previous_video_edit_name: str) -> Edit:
     filename = previous_video_edit_name + ".pkl"
     print(f"Loading previous edit from {filename}")
     with open(filename, 'rb') as f:
         data = pickle.load(f)
     print("Previous Edit Data Loaded")
     return data
+
+def save_annotations(annotation_filename_for_saving: str,annotations: "list[MetaClipData]"):
+    filename = annotation_filename_for_saving + ".pkl"
+    print(f"Saving clip annotations to {filename}")
+    with open(filename, 'wb') as f:
+        pickle.dump(annotations, f)
+    print("Annotation Data Saved")
+
+    # Get the file size
+    file_size = os.path.getsize(filename)
+    print(f"File size of {filename}: {file_size} bytes")
+    
+def load_annotations(annotation_filename: str) -> "list[MetaClipData]":
+    filename = annotation_filename + ".pkl"
+    print(f"Saving clip annotations to {filename}")
+    with open(filename, 'wb') as f:
+        data = pickle.load(f)
+    print("Annotation Data Loaded")
+    return data
+    
+    
