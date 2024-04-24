@@ -16,6 +16,7 @@ class VideoSegment:
 @dataclass
 class MetaClipData:
     filename: str
-    detections: "list[np.ndarray]"
+    normalized_detection_areas: np.ndarray
+    avg_normalized_area: int # the average normalized detected face area 
     clip_height: int
     clip_width: int

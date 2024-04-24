@@ -11,9 +11,9 @@ def process_clips(clips: "list[str]", method: str='haar') -> "list[MetaClipData]
     return annotations
 
 def detect_faces_cascade(clip_path: str, should_annotate:bool = False, output_dir:str = ""):
-    frames = []
+    
     cap = cv2.VideoCapture(clip_path)
-
+    
     fps = cap.get(cv2.CAP_PROP_FPS)
 
     # output_title = os.path.join(output_dir, os.path.basename(clip_path).split(".")[0] + ".mp4")
@@ -29,6 +29,9 @@ def detect_faces_cascade(clip_path: str, should_annotate:bool = False, output_di
     # display progress
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
+    frames = np.zeros(frame_count)
+    frame_index = 0
+    
     with tqdm(total=frame_count) as pbar:
         while cap.isOpened():
             ret, frame = cap.read()
@@ -39,9 +42,14 @@ def detect_faces_cascade(clip_path: str, should_annotate:bool = False, output_di
             # grayscale for detection
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+            faces = face_cascade.detectMultiScale(gray, 1.3, 5) # assume 1 detection
+            if len(faces) != 0:
+                x, y, w, h = faces[0]
+                w_norm = w / frame_width
+                h_norm = h / frame_height
 
-            frames.append(np.array([]) if len(faces) == 0 else faces)
+            frames[frame_index] = 0.0 if len(faces) == 0 else w_norm * h_norm
+            frame_index += 1
             pbar.update(1)
         # for (x, y, w, h) in faces:
         #     cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2) # this function writes to the frame object
@@ -49,29 +57,17 @@ def detect_faces_cascade(clip_path: str, should_annotate:bool = False, output_di
         # output_video.write(frame)
     cap.release()
     
-    # ffmpeg_command = [
-    #     "ffmpeg",
-    #     "-i", output_title,
-    #     "-i", clip_path,
-    #     "-c:v", "copy",
-    #     "-c:a", "aac",
-    #     "-strict", "experimental",
-    #     "-map", "0:v:0",
-    #     "-map", "1:a:0",
-    #     output_title + "f"
-    # ]
-
-    # subprocess.run(ffmpeg_command)
+    avg_normalized_area = np.mean(frames != 0) # average when faces are actually present
     
-    return frames, frame_width, frame_height
+    return frames, frame_width, frame_height, avg_normalized_area
 
 def detect_faces(clips: "list[str]", method: Literal["haar", "facenet"]):
     print("Clips to process: ", clips)
     faces = []
     if method == 'haar':
         for clip in clips:
-            detections, width, height = detect_faces_cascade(clip)
-            faces.append(MetaClipData(clip, detections, height, width))
+            normalized_detection_areas, width, height, avg_normalized_area = detect_faces_cascade(clip)
+            faces.append(MetaClipData(clip, normalized_detection_areas, avg_normalized_area, height, width))
     elif method == "facenet":
         print("Not implemented yet.")
     else:
@@ -80,9 +76,22 @@ def detect_faces(clips: "list[str]", method: Literal["haar", "facenet"]):
 
 ############## Face Detection Comparison Utilities ############################
 
-def get_best_new_clip(start_frame: int, threshold: int, detections: "list[MetaClipData]") -> MetaClipData:
-    # sort of naive idea -> if no better is available, return something to signify this and don't append
-    pass
+def get_best_new_clip(start_frame: int, transitioned_clip: MetaClipData, threshold: int, detections: "list[MetaClipData]") -> MetaClipData:
+    clip_choices = [(clip.normalized_detection_areas[start_frame], clip) for clip in detections if clip != transitioned_clip] # exclude the clip we're transitioning from? -> what if no others are better?
+    
+    # initialize and look for potentially better options
+    max_area = clip_choices[0][0]
+    best_clip = clip_choices[0][1]
+    
+    for area, clip in clip_choices:
+        if area > max_area:
+            best_clip = clip
+            max_area = area
+    
+    return best_clip
 
-def is_face_visible(frame: int, clip: MetaClipData) -> bool:
-    return clip.detections[frame] != np.array([])
+def is_face_visible(frame: int, clip: MetaClipData, strictness: float) -> bool:
+    detected_area: int = clip.normalized_detection_areas[frame]
+    ratio = float(detected_area) / float(clip.avg_normalized_area)
+    return ratio > strictness
+    
