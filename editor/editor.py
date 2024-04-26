@@ -6,19 +6,25 @@ from processing.load import save_edit
 from processing.features import get_best_new_clip, is_face_visible
 
     
-def edit_random(current_edit:Edit, 
-    clips_and_annotations: "list[MetaClipData]", num_cuts=0, should_save=True):
-    duration = current_edit.duration
-    if num_cuts < 0 or num_cuts > duration:
+def edit_random(
+    current_edit:Edit, 
+    clips_and_annotations: "list[MetaClipData]",
+    duration: int=-1,
+    num_cuts=0, 
+    should_save=True):
+    if duration == -1:
+        duration = current_edit.duration
+        
+    if num_cuts <= 0 or num_cuts > duration:
         print("Invalid number of cuts requested")
         return
     
     segment_length = int(duration / num_cuts)
     
     new_edit_list = [
-        VideoSegment(random.choice(clips_and_annotations).filename
-                     , i*segment_length,
-                     i+1 * segment_length) for i in range(num_cuts-1)]
+        VideoSegment(random.choice(clips_and_annotations).filename,
+                     i * segment_length,
+                     (i + 1) * segment_length - 1) for i in range(num_cuts)]
     current_edit.edit_list = new_edit_list
     
     # save for statefulness
@@ -57,8 +63,8 @@ def edit_simple(
         if frames_remaining == 0 and cut_allowed_time_remaining == cut_frequency_threshold_frames: # enough frames have elapsed and we haven't cut too recently
             frames_remaining = threshold_frames
             new_clip = get_best_new_clip(t, current_clip, threshold_frames, clips_and_annotations)
-            new_edit_list.append(VideoSegment(current_clip.filename, start=clip_start, end=t-1)) # TODO: maybe adjust in cases where we can't cut
-            clip_start = t #TODO may have off-by-one error
+            new_edit_list.append(VideoSegment(current_clip.filename, start=clip_start, end=t-1))
+            clip_start = t
             current_clip = new_clip
             cut_allowed_time_remaining = 0 # reset counter for how frequently we can cut
             continue # skip the increment for our counter
@@ -89,7 +95,8 @@ def edit_complex(
     cut_frequency_threshold_frames = 60,
     edit_start_time: int=0,
     strictness_amt: float=0.5,
-    
+    hold_start_frames=0,
+    hold_end_frames=0,
     should_save=True
     ) -> Edit:
     
@@ -109,11 +116,11 @@ def edit_complex(
         else: frames_remaining = threshold_frames # reset if face returns
         
         # cut successfuly triggered
-        if frames_remaining == 0 and cut_allowed_time_remaining == cut_frequency_threshold_frames: # enough frames have elapsed and we haven't cut too recently
+        if frames_remaining == 0 and cut_allowed_time_remaining == cut_frequency_threshold_frames and t > hold_start_frames and t < current_edit.duration- hold_end_frames: 
             frames_remaining = threshold_frames
             new_clip = get_best_new_clip(t, current_clip, threshold_frames, clips_and_annotations)
-            new_edit_list.append(VideoSegment(current_clip.filename, start=clip_start, end=t-1)) # TODO: maybe adjust in cases where we can't cut
-            clip_start = t #TODO may have off-by-one error
+            new_edit_list.append(VideoSegment(current_clip.filename, start=clip_start, end=t-1))
+            clip_start = t
             current_clip = new_clip
             cut_allowed_time_remaining = 0 # reset counter for how frequently we can cut
             continue # skip the increment for our counter
@@ -122,16 +129,19 @@ def edit_complex(
     # append the final clip if no cuts are made
     new_edit_list.append(VideoSegment(current_clip.filename, start=clip_start, end=current_edit.duration))
     
-    if edit_start_time != 0 and current_edit.duration != -1: # we're modifying a prior edit
+    if edit_start_time != 0 and current_edit.duration != -1: # modifying a prior edit
+        print("Previous Edit Sequence modified")
         new_edit.edit_list = overwrite(current_edit.edit_list, new_edit_list, duration=current_edit.duration)
     else:
+        print("Full Edit Sequence created")
         new_edit.edit_list = new_edit_list
     
     # save for statefulness
     if should_save:
         save_edit(new_edit)
         
-    return new_edit  
+    return new_edit
+    
     
 def overwrite(current_edit_list: "list[VideoSegment]",
               new_edit_list: "list[VideoSegment]",
@@ -139,11 +149,7 @@ def overwrite(current_edit_list: "list[VideoSegment]",
     output_edit_list: "list[VideoSegment]" = []
     
     start_clip, end_clip = new_edit_list[0], new_edit_list[-1]
-    # print(start_clip, end_clip)
-    
-    # print("Initial List: ", current_edit_list)
-    # print("Overwrite List: ", new_edit_list)
-    # integrate the start + all except end
+
     for i in range(len(current_edit_list)):
         current_clip = current_edit_list[i]
         # current clip is earlier than any of the overwrites
@@ -179,14 +185,5 @@ def overwrite(current_edit_list: "list[VideoSegment]",
                 if start_clip.end > next_clip.start and start_clip.end < next_clip.end:
                     output_edit_list.append(VideoSegment(next_clip.filename, start_clip.end, next_clip.end))
                     break
-        # elif end_clip.end > current_clip.start and end_clip.end < current_clip.end:
-        #     output_edit_list.append(start_clip)
-        #     output_edit_list.append(VideoSegment(current_clip.filename, start=end_clip.start + 1, end=current_clip.end))
     
     return output_edit_list
-    
-if __name__ == '__main__':
-    # edit = Edit("test")
-    # edit.duration = 32
-    edit_list = [VideoSegment("video 1", 0, 15), VideoSegment("Video 2", 15, 32)]
-    print(overwrite(edit_list, [VideoSegment("Clip1", 8, 27)]))

@@ -7,10 +7,10 @@ from tqdm import tqdm
 from editor.core import VideoSegment
 
 def assemble(clips: "list[VideoSegment]", number_of_clips: int, fps: int, verbose=False, output_video_filename="Output_Video.mp4") -> str:
-    # if verbose:
-    #     print("Edits to apply:")
-    #     for clip in clips[:number_of_clips]:
-    #         print(clip)
+    if verbose:
+        print("Edits to apply:")
+        for clip in clips[:number_of_clips]:
+            print(clip)
     print(output_video_filename)
     
     with tempfile.TemporaryDirectory() as temp_dir:

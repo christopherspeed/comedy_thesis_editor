@@ -73,8 +73,7 @@ def detect_faces(clips: "list[str]", method: Literal["haar", "facenet"]):
 ############## Face Detection Comparison Utilities ############################
 
 def get_best_new_clip(start_frame: int, transitioned_clip: MetaClipData, threshold: int, detections: "list[MetaClipData]") -> MetaClipData:
-    clip_choices = [(clip.normalized_detection_areas[start_frame], clip) for clip in detections if clip != transitioned_clip] # exclude the clip we're transitioning from? -> what if no others are better?
-    
+    clip_choices = [(clip.normalized_detection_areas[start_frame], clip) for clip in detections if clip != transitioned_clip]     
     # initialize and look for potentially better options
     max_area = clip_choices[0][0]
     best_clip = clip_choices[0][1]
