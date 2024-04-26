@@ -1,26 +1,34 @@
-"""
-Utilities module covering the video editing functionalities used by the central
-editor model.
-"""
-
-import numpy as np
 import subprocess
 import tempfile
 import os
 import uuid
+from tqdm import tqdm
 
-def assemble(clips: "list[dict]", output_video_filename="Output_Video.mp4") -> str:
+from editor.core import VideoSegment
+
+def assemble(clips: "list[VideoSegment]", number_of_clips: int, fps: int, verbose=False, output_video_filename="Output_Video.mp4") -> str:
+    # if verbose:
+    #     print("Edits to apply:")
+    #     for clip in clips[:number_of_clips]:
+    #         print(clip)
+    print(output_video_filename)
+    
     with tempfile.TemporaryDirectory() as temp_dir:
-                
+        print("--- Beginning Video Segment Assembly ---")
+        # print(f"Temporary Directory: {temp_dir}")        
         temp_clips = []
-        for clip in clips:
-            clip_filename = clip["filename"]
-            start, end = clip["start"], clip["end"]
+   
+        for i, clip in enumerate(clips):
+            clip_filename = clip.filename
+            start, end =  round((clip.start / fps) * fps) / fps, round((clip.end / fps) * fps) / fps
             # remove ending filename, make ensure that we can take multiple sections of the same clip
             temp_clip = os.path.join(temp_dir, f'{clip_filename[:-4]}_{str(uuid.uuid4())}.mp4')
-            print("Temporary clip name", temp_clip)
+            if verbose:
+                print(f"Current Segment -> file: {clip_filename} start: {start} end: {end}")
+                print(f"Temporary clip {temp_clip} with duration {end-start + 1} created...")
             
-            if end == -1: # final clip
+            if i == len(clips) - 1: # final clip
+                print("Final Clip in Sequence is being Extracted...")
                 extract_command = [
                     'ffmpeg', 
                     '-y', 
@@ -50,14 +58,21 @@ def assemble(clips: "list[dict]", output_video_filename="Output_Video.mp4") -> s
                     '-preset', 'fast',  # Encoding preset
                     temp_clip
                 ]
+            print(extract_command)
             subprocess.run(extract_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             temp_clips.append(temp_clip)
+            if i == number_of_clips - 1:
+                print(f"Early exiting with {i + 1} clips processed")
+                break
+        
         temp_list_file = os.path.join(temp_dir, 'input.txt')
+        print("Temporary List File: ", temp_list_file)
         
         # Write the list of input section files to a temporary file so we can use ffmpeg concat filter
         with open(temp_list_file, 'w') as f:
             for clip in temp_clips:
                 f.write(f"file '{clip}'\n")
+                
         # concatenate all clips into a full video
         concat_cmd = [
             'ffmpeg', 
@@ -70,8 +85,9 @@ def assemble(clips: "list[dict]", output_video_filename="Output_Video.mp4") -> s
             '-preset', 'fast',  
             output_video_filename
         ]
-        print(concat_cmd)
+        print("About to attempt concatenation...")
         subprocess.run(concat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
         
         # Clean up temporary video clips
         for temp_clip in temp_clips:
@@ -81,4 +97,5 @@ def assemble(clips: "list[dict]", output_video_filename="Output_Video.mp4") -> s
             except Exception as e:
                 print(f"Error deleting temporary clip: {temp_clip}. Error: {e}")
     
+    print("--- Video Segment Assembly Completed ---") 
     return output_video_filename

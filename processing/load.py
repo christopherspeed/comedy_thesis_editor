@@ -7,18 +7,22 @@ from processing.features import process_clips
 def setup_editor(new_edit_title: str, new_annotation_title:str, clips_src_dir:str, previous_edit_filename: str="", previous_annotation_filename: str=""):
     clips = get_input_clips(clips_src_dir)
    
-    if previous_annotation_filename != "":
+    if previous_annotation_filename == "":
+        print("Newly processing annotations")
         annotations = process_clips(clips)
         save_annotations(new_annotation_title, annotations)
     else:
+        print("Loading Prior Annotations")
         annotations = load_annotations(previous_annotation_filename)
         
-    if previous_edit_filename != "":
+    if previous_edit_filename == "":
+        print("Previous Edit does not exist. Creating new Edit instance")
         edit = Edit(new_edit_title)
-        edit.duration = len(annotations[0].detections) # TODO kind of hacky -> length of frames should be same across all clips
+        edit.duration = len(annotations[0].normalized_detection_areas)
         # save this edit as state initialization
         save_edit(edit)
     else:
+        print("Previous Edit exists! Loading it from disk.")
         edit = load_edit(previous_edit_filename) # duration, name, etc. should be properly initialized
         
     return edit, annotations
@@ -78,7 +82,7 @@ def save_annotations(annotation_filename_for_saving: str,annotations: "list[Meta
 def load_annotations(annotation_filename: str) -> "list[MetaClipData]":
     filename = annotation_filename + ".pkl"
     print(f"Saving clip annotations to {filename}")
-    with open(filename, 'wb') as f:
+    with open(filename, 'rb') as f:
         data = pickle.load(f)
     print("Annotation Data Loaded")
     return data

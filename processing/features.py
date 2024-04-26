@@ -15,17 +15,13 @@ def detect_faces_cascade(clip_path: str, should_annotate:bool = False, output_di
     cap = cv2.VideoCapture(clip_path)
     
     fps = cap.get(cv2.CAP_PROP_FPS)
-
-    # output_title = os.path.join(output_dir, os.path.basename(clip_path).split(".")[0] + ".mp4")
+    
     # print(output_title)
     print(clip_path)
     # Get the width and height of the frames
     frame_width = int(cap.get(3))
     frame_height = int(cap.get(4))
 
-    # Create a VideoWriter object to save the output video
-    # output_video = cv2.VideoWriter(output_title, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_width, frame_height))
-    
     # display progress
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
